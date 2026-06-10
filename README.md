@@ -12,17 +12,17 @@ The design, implementation, and enhancements in this repository are my own.
 Analyze 6,025 global Data Engineering job postings.
 
 **Architecture:**
-CSV
- ↓
-DuckDB
- ↓
-Bronze
- ↓
-Silver
- ↓
-Gold
- ↓
-Streamlit
+GitHub
+│
+├── data/bronze/jobs.csv
+│
+└── app.py
+      ↓
+Creates jobs.duckdb automatically
+      ↓
+Loads CSV
+      ↓
+Runs dashboard
 ****
 **Technology Stack**
 Python
