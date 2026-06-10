@@ -1,9 +1,10 @@
-with skills as (
+with exploded_skills as (
 
     select
-        year(first_seen) as job_year,
-        unnest(
-            string_split(job_skills, ',')
+        trim(
+            unnest(
+                string_split(job_skills, ',')
+            )
         ) as skill
 
     from {{ ref('slv_jobs') }}
@@ -13,16 +14,13 @@ with skills as (
 )
 
 select
-    job_year,
-    trim(skill) as skill,
+    lower(skill) as skill,
     count(*) as frequency
 
-from skills
+from exploded_skills
 
-group by
-    job_year,
-    trim(skill)
+where skill <> ''
 
-order by
-    job_year,
-    frequency desc
+group by lower(skill)
+
+order by frequency desc
