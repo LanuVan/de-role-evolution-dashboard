@@ -1,6 +1,6 @@
 import streamlit as st
 import duckdb
-import pandas as pd
+import os
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -13,10 +13,18 @@ st.set_page_config(
 )
 
 # --------------------------------------------------
-# DATABASE CONNECTION
+# DATABASE SETUP
 # --------------------------------------------------
 
+os.makedirs("duckdb", exist_ok=True)
+
 con = duckdb.connect("duckdb/jobs.duckdb")
+
+con.execute("""
+CREATE OR REPLACE TABLE raw_jobs AS
+SELECT *
+FROM read_csv_auto('data/bronze/jobs.csv')
+""")
 
 # --------------------------------------------------
 # TITLE
@@ -30,7 +38,7 @@ Analyze 6,000+ Data Engineering job postings using
 """)
 
 # --------------------------------------------------
-# SIDEBAR
+# SIDEBAR FILTERS
 # --------------------------------------------------
 
 st.sidebar.header("Filters")
@@ -61,7 +69,7 @@ else:
     """
 
 # --------------------------------------------------
-# KPI SECTION
+# KPI METRICS
 # --------------------------------------------------
 
 total_jobs = con.execute(f"""
@@ -103,8 +111,33 @@ st.divider()
 st.subheader("🔥 Top Skills")
 
 skill_df = con.execute("""
-select *
-from skill_frequency
+with exploded_skills as (
+
+    select
+        trim(
+            unnest(
+                string_split(job_skills, ',')
+            )
+        ) as skill
+
+    from raw_jobs
+
+    where job_skills is not null
+
+)
+
+select
+    lower(skill) as skill,
+    count(*) as frequency
+
+from exploded_skills
+
+where skill <> ''
+
+group by lower(skill)
+
+order by frequency desc
+
 limit 20
 """).fetchdf()
 
@@ -113,19 +146,41 @@ st.bar_chart(
 )
 
 # --------------------------------------------------
-# CLOUD DEMAND
+# CLOUD PLATFORM DEMAND
 # --------------------------------------------------
 
 st.subheader("☁️ Cloud Platform Demand")
 
 cloud_df = con.execute("""
-select *
-from skill_frequency
-where skill in (
+with exploded_skills as (
+
+    select
+        trim(
+            unnest(
+                string_split(job_skills, ',')
+            )
+        ) as skill
+
+    from raw_jobs
+
+    where job_skills is not null
+
+)
+
+select
+    lower(skill) as skill,
+    count(*) as frequency
+
+from exploded_skills
+
+where lower(skill) in (
     'aws',
     'azure',
     'gcp'
 )
+
+group by lower(skill)
+
 order by frequency desc
 """).fetchdf()
 
@@ -134,7 +189,7 @@ st.bar_chart(
 )
 
 # --------------------------------------------------
-# TOP COMPANIES
+# TOP HIRING COMPANIES
 # --------------------------------------------------
 
 st.subheader("🏢 Top Hiring Companies")
@@ -160,7 +215,7 @@ st.bar_chart(
 )
 
 # --------------------------------------------------
-# COUNTRY DISTRIBUTION
+# JOBS BY COUNTRY
 # --------------------------------------------------
 
 st.subheader("🌎 Jobs by Country")
