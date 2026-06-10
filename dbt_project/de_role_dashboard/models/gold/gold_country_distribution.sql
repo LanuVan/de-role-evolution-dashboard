@@ -1,9 +1,9 @@
 select
-    job_level,
+    search_country,
     count(*) as jobs
 
 from {{ ref('slv_jobs') }}
 
-group by job_level
+group by search_country
 
 order by jobs desc

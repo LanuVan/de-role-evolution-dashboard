@@ -23,29 +23,67 @@ con = duckdb.connect("duckdb/jobs.duckdb")
 # --------------------------------------------------
 
 st.title("🌍 Global Data Engineering Jobs Dashboard")
-st.markdown("Analysis of 6,000+ Data Engineering job postings using DuckDB, dbt and Streamlit")
+
+st.markdown("""
+Analyze 6,000+ Data Engineering job postings using
+**DuckDB + dbt + Streamlit**
+""")
 
 # --------------------------------------------------
-# KPI METRICS
+# SIDEBAR
 # --------------------------------------------------
 
-total_jobs = con.execute("""
+st.sidebar.header("Filters")
+
+countries_df = con.execute("""
+select distinct search_country
+from raw_jobs
+where search_country is not null
+order by search_country
+""").fetchdf()
+
+country_list = ["All"] + countries_df["search_country"].tolist()
+
+selected_country = st.sidebar.selectbox(
+    "Country",
+    country_list
+)
+
+# --------------------------------------------------
+# FILTER CLAUSE
+# --------------------------------------------------
+
+if selected_country == "All":
+    filter_clause = ""
+else:
+    filter_clause = f"""
+    where search_country = '{selected_country}'
+    """
+
+# --------------------------------------------------
+# KPI SECTION
+# --------------------------------------------------
+
+total_jobs = con.execute(f"""
 select count(*)
 from raw_jobs
+{filter_clause}
 """).fetchone()[0]
 
-total_companies = con.execute("""
+total_companies = con.execute(f"""
 select count(distinct company)
 from raw_jobs
+{filter_clause}
+""").fetchone()[0]
+
+total_cities = con.execute(f"""
+select count(distinct search_city)
+from raw_jobs
+{filter_clause}
 """).fetchone()[0]
 
 total_countries = con.execute("""
 select count(distinct search_country)
-from raw_jobs
-""").fetchone()[0]
-
-total_cities = con.execute("""
-select count(distinct search_city)
 from raw_jobs
 """).fetchone()[0]
 
@@ -62,7 +100,7 @@ st.divider()
 # TOP SKILLS
 # --------------------------------------------------
 
-st.subheader("🔥 Most Requested Skills")
+st.subheader("🔥 Top Skills")
 
 skill_df = con.execute("""
 select *
@@ -75,7 +113,7 @@ st.bar_chart(
 )
 
 # --------------------------------------------------
-# CLOUD PLATFORM DEMAND
+# CLOUD DEMAND
 # --------------------------------------------------
 
 st.subheader("☁️ Cloud Platform Demand")
@@ -83,7 +121,11 @@ st.subheader("☁️ Cloud Platform Demand")
 cloud_df = con.execute("""
 select *
 from skill_frequency
-where skill in ('aws','azure','gcp')
+where skill in (
+    'aws',
+    'azure',
+    'gcp'
+)
 order by frequency desc
 """).fetchdf()
 
@@ -92,18 +134,24 @@ st.bar_chart(
 )
 
 # --------------------------------------------------
-# TOP HIRING COMPANIES
+# TOP COMPANIES
 # --------------------------------------------------
 
 st.subheader("🏢 Top Hiring Companies")
 
-company_df = con.execute("""
+company_df = con.execute(f"""
 select
     company,
     count(*) as jobs
+
 from raw_jobs
+
+{filter_clause}
+
 group by company
+
 order by jobs desc
+
 limit 15
 """).fetchdf()
 
@@ -112,7 +160,7 @@ st.bar_chart(
 )
 
 # --------------------------------------------------
-# JOBS BY COUNTRY
+# COUNTRY DISTRIBUTION
 # --------------------------------------------------
 
 st.subheader("🌎 Jobs by Country")
@@ -121,8 +169,11 @@ country_df = con.execute("""
 select
     search_country,
     count(*) as jobs
+
 from raw_jobs
+
 group by search_country
+
 order by jobs desc
 """).fetchdf()
 
@@ -131,43 +182,46 @@ st.bar_chart(
 )
 
 # --------------------------------------------------
-# COUNTRY FILTER
+# SKILL SEARCH
 # --------------------------------------------------
 
-st.subheader("🔍 Explore Jobs by Country")
+st.subheader("🔍 Search Jobs by Skill")
 
-countries = con.execute("""
-select distinct search_country
-from raw_jobs
-order by search_country
-""").fetchdf()
-
-selected_country = st.selectbox(
-    "Select Country",
-    countries["search_country"]
+search_skill = st.text_input(
+    "Enter a skill (Python, SQL, AWS, Snowflake, Kafka...)"
 )
 
-country_jobs = con.execute(f"""
-select
-    company,
-    job_title,
-    search_city,
-    job_type
-from raw_jobs
-where search_country = '{selected_country}'
-limit 100
-""").fetchdf()
+if search_skill:
 
-st.dataframe(
-    country_jobs,
-    use_container_width=True
-)
+    jobs_df = con.execute(f"""
+    select
+        company,
+        job_title,
+        search_country,
+        search_city
+
+    from raw_jobs
+
+    where lower(job_skills)
+    like '%{search_skill.lower()}%'
+
+    limit 100
+    """).fetchdf()
+
+    st.write(
+        f"Found {len(jobs_df)} jobs containing '{search_skill}'"
+    )
+
+    st.dataframe(
+        jobs_df,
+        use_container_width=True
+    )
 
 # --------------------------------------------------
-# RAW DATA EXPLORER
+# SAMPLE DATA
 # --------------------------------------------------
 
-with st.expander("📄 View Sample Data"):
+with st.expander("📄 View Sample Dataset"):
 
     sample_df = con.execute("""
     select *
@@ -187,5 +241,5 @@ with st.expander("📄 View Sample Data"):
 st.divider()
 
 st.caption(
-    "Built using DuckDB • dbt • Streamlit • GitHub"
+    "Built using Python • DuckDB • dbt • Streamlit • GitHub"
 )
