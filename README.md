@@ -1,5 +1,6 @@
 # de-role-evolution-dashboard
- To visualize how data engineering job requirements changed from 2015 to 2026 using publicly available job posting datasets on Kaggle.
+Global Data Engineering Job Market Analysis (2023) using publicly available job posting datasets on Kaggle.
+
 ## Inspiration
 
 The initial idea for this project came from a Medium article by Author Name
